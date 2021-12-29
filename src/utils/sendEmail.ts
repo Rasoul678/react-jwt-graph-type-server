@@ -19,7 +19,7 @@ export const sendEmail = async (email: string, token: string) => {
     html: `
     <h2>Hi</h2>
     <p style='padding: 1rem 0;'>Please click on the link below to go to the change password page.</p>
-    <a href='http://localhost:4000?rpt=${encode(
+    <a href='http://localhost:3000/reset_password?rpt=${encode(
       token
     )}' style='color: crimson; font-size: 1rem;'>Change Password</a>
     `,

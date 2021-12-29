@@ -82,7 +82,7 @@ class userResolver {
     return User.find();
   }
 
-  @Query(() => ResetPasswordResponse)
+  @Mutation(() => ResetPasswordResponse)
   async resetPassword(
     @Arg("input", () => ResetPasswordInput) input: ResetPasswordInput
   ): Promise<ResetPasswordResponse> {
@@ -92,7 +92,7 @@ class userResolver {
 
     if (!user) {
       return {
-        message: "Invalid token",
+        message: "Token expired or invalid",
         ok: false,
       };
     }
@@ -121,8 +121,8 @@ class userResolver {
     }
   }
 
-  @Query(() => ResetPasswordResponse)
-  async sendChangePasswordEmail(
+  @Mutation(() => ResetPasswordResponse)
+  async sendResetPasswordEmail(
     @Arg("email") email: string
   ): Promise<ResetPasswordResponse> {
     const user = await User.findOne({ where: { email } });
