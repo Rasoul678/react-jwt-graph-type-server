@@ -18,6 +18,7 @@ import {
   Resolver,
   UseMiddleware,
 } from "type-graphql";
+import { verify } from "jsonwebtoken";
 
 @ObjectType()
 class FieldError {
@@ -44,6 +45,9 @@ class UserResponse {
 
   @Field(() => String, { nullable: true })
   accessToken?: string;
+
+  @Field(() => User, { nullable: true })
+  user?: User;
 }
 
 @InputType()
@@ -71,12 +75,26 @@ class userResolver {
     return "hello!";
   }
 
-  @UseMiddleware(isAuth)
-  @Query(() => String)
-  bye(@Ctx() { payload }: MyContext) {
-    return `user id: ${payload?.userId}`;
+  @Query(() => User, { nullable: true })
+  async me(@Ctx() {req}: MyContext) {
+    const authorization = req.headers["authorization"];
+
+    if (!authorization) {
+      return null;
+    }
+
+    try {
+      const token = authorization.split(" ")[1];
+      const payload: any = verify(token, process.env.ACCESS_TOKEN_SECRET!);
+
+      return User.findOne({ where: { id: payload.userId } });
+    } catch (error) {
+      console.log(error);
+      return null;
+    }
   }
 
+  @UseMiddleware(isAuth)
   @Query(() => [User])
   users() {
     return User.find();
@@ -182,7 +200,7 @@ class userResolver {
 
     const accessToken = createAccessToken(user);
 
-    return { accessToken };
+    return { accessToken, user };
   }
 
   @Mutation(() => UserResponse)
@@ -223,11 +241,17 @@ class userResolver {
 
       const accessToken = createAccessToken(savedUser as User);
 
-      return { accessToken };
+      return { accessToken, user: savedUser as User };
     } catch (error) {
       console.log(error);
       return { error: { type: "Server error", message: error.message } };
     }
+  }
+
+  @Mutation(() => Boolean)
+  logout(@Ctx() { res }: MyContext) {
+    sendRefreshToken(res, "");
+    return true;
   }
 }
 
