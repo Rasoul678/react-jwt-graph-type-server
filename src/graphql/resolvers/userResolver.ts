@@ -1,6 +1,5 @@
 import { User } from "../../entity/User";
 import { compare, hash } from "bcryptjs";
-import { getConnection } from "typeorm";
 import { MyContext } from "src/MyContext";
 import { createAccessToken, createRefreshToken } from "../../utils/auth";
 import { isAuth } from "../../middlewares/isAuth";
@@ -19,6 +18,7 @@ import {
   UseMiddleware,
 } from "type-graphql";
 import { verify } from "jsonwebtoken";
+import { Profile } from "../../entity/Profile";
 
 @ObjectType()
 class FieldError {
@@ -70,13 +70,8 @@ class ResetPasswordInput {
 
 @Resolver()
 class userResolver {
-  @Query(() => String)
-  hello() {
-    return "hello!";
-  }
-
   @Query(() => User, { nullable: true })
-  async me(@Ctx() {req}: MyContext) {
+  async me(@Ctx() { req }: MyContext) {
     const authorization = req.headers["authorization"];
 
     if (!authorization) {
@@ -87,7 +82,7 @@ class userResolver {
       const token = authorization.split(" ")[1];
       const payload: any = verify(token, process.env.ACCESS_TOKEN_SECRET!);
 
-      return User.findOne({ where: { id: payload.userId } });
+      return User.findOne(payload.userId, { relations: ["profile"] });
     } catch (error) {
       console.log(error);
       return null;
@@ -97,7 +92,7 @@ class userResolver {
   @UseMiddleware(isAuth)
   @Query(() => [User])
   users() {
-    return User.find();
+    return User.find({ relations: ["profile"] });
   }
 
   @Mutation(() => ResetPasswordResponse)
@@ -220,28 +215,21 @@ class userResolver {
       //! Hash the password before inserting it into the db.
       const hashedPassword = await hash(input.password, 12);
 
-      //! Save the record in db.
-      const result = await getConnection()
-        .createQueryBuilder()
-        .insert()
-        .into(User)
-        .values([
-          {
-            email: input.email,
-            password: hashedPassword,
-          },
-        ])
-        .returning("*")
-        .execute();
+      const profile = await Profile.create().save();
 
-      const savedUser = result.generatedMaps[0];
+      const user = await User.create({
+        email: input.email,
+        password: hashedPassword,
+        profileId: profile.id,
+      }).save();
+
       //! User successfully registered.
-      const refreshToken = createRefreshToken(savedUser as User);
+      const refreshToken = createRefreshToken(user);
       sendRefreshToken(res, refreshToken);
 
-      const accessToken = createAccessToken(savedUser as User);
+      const accessToken = createAccessToken(user);
 
-      return { accessToken, user: savedUser as User };
+      return { accessToken, user };
     } catch (error) {
       console.log(error);
       return { error: { type: "Server error", message: error.message } };

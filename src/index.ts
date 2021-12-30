@@ -6,7 +6,7 @@ import { createConnection } from "typeorm";
 import { ApolloServer } from "apollo-server-express";
 import express from "express";
 import { buildSchema } from "type-graphql";
-import { userResolver } from "./graphql/resolvers";
+import { userResolver, profileResolver } from "./graphql/resolvers";
 import { ApolloServerPluginLandingPageGraphQLPlayground } from "apollo-server-core";
 import { refreshTokenController } from "./controllers/refreshTokenController";
 
@@ -29,7 +29,7 @@ import { refreshTokenController } from "./controllers/refreshTokenController";
 
   const apolloServer = new ApolloServer({
     schema: await buildSchema({
-      resolvers: [userResolver],
+      resolvers: [userResolver, profileResolver],
       validate: false,
     }),
     context: ({ req, res }) => ({ req, res }),
